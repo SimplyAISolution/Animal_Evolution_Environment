@@ -6,7 +6,7 @@ from typing import List, Dict, Any, Optional
 from .config import Config
 from .rng import RNG
 from .world import Environment
-from .creature import Creature
+from .creatures import Creature
 from .brain import CreatureBrain
 from .evolution import EvolutionEngine
 from .spatial import SpatialHash

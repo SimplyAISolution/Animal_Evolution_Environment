@@ -6,7 +6,7 @@ import numpy as np
 from ai_evo.simulation import Simulation
 from ai_evo.config import Config
 from ai_evo.spatial import SpatialHash
-from ai_evo.creature import Creature
+from ai_evo.creatures import Creature
 from ai_evo.genome import Genome
 
 class TestPerformance:
