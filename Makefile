@@ -28,16 +28,16 @@ install-dev:
 
 # Testing
 test:
-	pytest tests/ -v
+	PYTHONPATH=. pytest tests/ -v
 
 test-cov:
-	pytest tests/ --cov=ai_evo --cov-report=html --cov-report=term
+	PYTHONPATH=. pytest tests/ --cov=ai_evo --cov-report=html --cov-report=term
 
 test-determinism:
-	pytest tests/test_determinism.py -v
+	PYTHONPATH=. pytest tests/test_determinism.py -v
 
 test-performance:
-	pytest tests/test_performance.py -v
+	PYTHONPATH=. pytest tests/test_performance.py -v
 
 # Running
 run:
