@@ -1,7 +1,11 @@
+"""Random number generation utilities for deterministic simulations."""
+
 import numpy as np
+
 
 class RNG:
     """Central deterministic RNG wrapper."""
+    
     def __init__(self, seed: int):
         self.seed = seed
         self.rs = np.random.RandomState(seed)

@@ -2,15 +2,17 @@
 
 import uuid
 import numpy as np
+import time
 from typing import List, Dict, Any, Optional
 from .config import Config
 from .rng import RNG
 from .world import Environment
-from .creature import Creature
+from .creatures import Creature
 from .brain import CreatureBrain
 from .evolution import EvolutionEngine
 from .spatial import SpatialHash
 from .stats import Statistics
+from .profiler import global_profiler, timing_context
 
 class Simulation:
     """Main simulation controller managing creatures, environment, and evolution."""
@@ -77,63 +79,85 @@ class Simulation:
     
     def step(self) -> bool:
         """Execute one simulation time step. Returns False if simulation should end."""
+        step_start_time = time.time()
+        
+        # Enable profiling if configured
+        if self.cfg.enable_profiling and not global_profiler.enabled:
+            global_profiler.enable()
+        
         self.step_count += 1
         
         # Update environment
-        self.environment.step()
+        with timing_context("environment_update"):
+            self.environment.step()
         
         # Rebuild spatial hash for efficient neighbor queries
-        self.spatial_hash.rebuild(self.creatures)
+        with timing_context("spatial_hash_rebuild"):
+            self.spatial_hash.rebuild(self.creatures)
         
         # Process each creature
         new_creatures = []
         creatures_to_remove = set()
         
-        for creature in self.creatures:
-            # Age the creature
-            creature.age += 1
-            
-            # Check for natural death
-            if not creature.is_alive():
-                creatures_to_remove.add(creature.id)
-                self.total_deaths += 1
-                continue
-            
-            # Get nearby creatures for decision making
-            nearby_creatures = self.spatial_hash.get_neighbors(
-                self.creatures, creature, min(creature.genome.perception, self.cfg.perception_max)
-            )
-            
-            # Creature brain processes sensory input and decides actions
-            brain = CreatureBrain(creature.genome, self.rng)
-            sensory_input = brain.get_sensory_input(creature, self.environment, nearby_creatures)
-            actions = brain.forward(sensory_input)
-            
-            # Execute creature actions
-            offspring = self._execute_actions(creature, actions, nearby_creatures, creatures_to_remove)
-            if offspring:
-                new_creatures.append(offspring)
-                self.total_births += 1
-            
-            # Apply movement cost and energy consumption
-            self._apply_energy_costs(creature, actions)
-            
-            # Check for starvation
-            if creature.energy <= self.cfg.min_energy:
-                creatures_to_remove.add(creature.id)
-                self.total_deaths += 1
+        with timing_context("creature_processing"):
+            for creature in self.creatures:
+                # Age the creature
+                creature.age += 1
+                
+                # Check for natural death
+                if not creature.is_alive():
+                    creatures_to_remove.add(creature.id)
+                    self.total_deaths += 1
+                    continue
+                
+                # Get nearby creatures for decision making
+                with timing_context("neighbor_queries"):
+                    nearby_creatures = self.spatial_hash.get_neighbors(
+                        self.creatures, creature, min(creature.genome.perception, self.cfg.perception_max)
+                    )
+                
+                # Creature brain processes sensory input and decides actions
+                with timing_context("brain_processing"):
+                    brain = CreatureBrain(creature.genome, self.rng)
+                    sensory_input = brain.get_sensory_input(creature, self.environment, nearby_creatures)
+                    actions = brain.forward(sensory_input)
+                
+                # Execute creature actions
+                with timing_context("action_execution"):
+                    offspring = self._execute_actions(creature, actions, nearby_creatures, creatures_to_remove)
+                    if offspring:
+                        new_creatures.append(offspring)
+                        self.total_births += 1
+                
+                # Apply movement cost and energy consumption
+                with timing_context("energy_costs"):
+                    self._apply_energy_costs(creature, actions)
+                
+                # Check for starvation
+                if creature.energy <= self.cfg.min_energy:
+                    creatures_to_remove.add(creature.id)
+                    self.total_deaths += 1
         
         # Batch remove dead creatures
         if creatures_to_remove:
-            self.creatures = [c for c in self.creatures if c.id not in creatures_to_remove]
+            with timing_context("creature_removal"):
+                self.creatures = [c for c in self.creatures if c.id not in creatures_to_remove]
         
         # Add newborn creatures
         if new_creatures:
-            self.creatures.extend(new_creatures)
+            with timing_context("creature_addition"):
+                self.creatures.extend(new_creatures)
         
         # Record statistics
         if self.step_count % self.cfg.snapshot_every == 0:
-            self._record_statistics()
+            with timing_context("statistics_recording"):
+                self._record_statistics()
+        
+        # Record performance data
+        step_time = time.time() - step_start_time
+        if global_profiler.enabled:
+            spatial_stats = self.spatial_hash.get_stats()
+            global_profiler.record_step(step_time, len(self.creatures), spatial_stats)
         
         # Check termination conditions
         return self._should_continue()
@@ -142,35 +166,34 @@ class Simulation:
                         nearby_creatures: List[Creature], dead_creatures: set) -> Optional[Creature]:
         """Execute creature's chosen actions and return potential offspring."""
         
-        # Movement with toroidal wrapping
-        dx = actions["move_x"] * creature.genome.speed
-        dy = actions["move_y"] * creature.genome.speed
-        new_x = creature.position[0] + dx
-        new_y = creature.position[1] + dy
-        creature.update_position(new_x, new_y, self.cfg.width, self.cfg.height)
+        # Movement
+        dx = actions["move_x"] * creature.genome.speed * 0.5
+        dy = actions["move_y"] * creature.genome.speed * 0.5
+        creature.move(dx, dy, self.cfg.width, self.cfg.height)
         
         # Feeding behavior
-        if actions["eat"] > 0.5:
-            if creature.species == "herbivore":
-                self._herbivore_feeding(creature)
-            elif creature.species == "carnivore":
-                self._carnivore_hunting(creature, nearby_creatures, dead_creatures)
+        if creature.species == "herbivore":
+            self._herbivore_feeding(creature)
+        elif creature.species == "carnivore" and actions["attack"] > 0.5:
+            self._carnivore_hunting(creature, nearby_creatures, dead_creatures)
         
-        # Reproduction
+        # Reproduction with population pressure
         offspring = None
-        if actions["reproduce"] > 0.7 and creature.can_reproduce():
+        if (actions["reproduce"] > 0.7 and 
+            creature.can_reproduce() and 
+            len(self.creatures) < self.cfg.max_population):
             offspring = self._attempt_reproduction(creature, nearby_creatures)
         
         return offspring
     
     def _herbivore_feeding(self, creature: Creature) -> None:
         """Handle herbivore plant consumption."""
-        x, y = creature.position[0], creature.position[1]
-        food_consumed = self.environment.consume_food_at(x, y, self.cfg.herbivore_bite_cap)
+        x, y = int(creature.position[0]), int(creature.position[1])
+        food_consumed = self.environment.consume_food(x, y, self.cfg.herbivore_bite_size)
         
         if food_consumed > 0:
             energy_gained = food_consumed * 8.0  # Energy conversion efficiency
-            creature.gain_energy(energy_gained, self.cfg.max_energy)
+            creature.gain_energy(energy_gained, self.cfg.min_energy, self.cfg.max_energy)
     
     def _carnivore_hunting(self, predator: Creature, nearby_creatures: List[Creature], 
                           dead_creatures: set) -> None:
@@ -180,11 +203,23 @@ class Simulation:
         min_distance = 2.0  # Attack range
         
         for prey in nearby_creatures:
-            if (prey.species == "herbivore" and 
-                prey.id not in dead_creatures and
-                predator.distance_to(prey) < min_distance):
-                target = prey
-                min_distance = predator.distance_to(prey)
+            if (prey.species == "herbivore" and
+                prey.id not in dead_creatures):
+                # Calculate toroidal distance
+                dx = abs(predator.position[0] - prey.position[0])
+                dy = abs(predator.position[1] - prey.position[1])
+                
+                # Handle toroidal wrapping
+                if dx > self.cfg.width / 2:
+                    dx = self.cfg.width - dx
+                if dy > self.cfg.height / 2:
+                    dy = self.cfg.height - dy
+                
+                distance = (dx * dx + dy * dy) ** 0.5
+                
+                if distance < min_distance:
+                    target = prey
+                    min_distance = distance
         
         if target:
             # Combat resolution based on size and aggression
@@ -193,8 +228,8 @@ class Simulation:
             
             if attack_power > defense_power:
                 # Successful hunt
-                energy_gained = target.energy * self.cfg.carnivore_gain_eff
-                predator.gain_energy(energy_gained, self.cfg.max_energy)
+                energy_gained = target.energy * self.cfg.carnivore_energy_gain
+                predator.gain_energy(energy_gained, self.cfg.min_energy, self.cfg.max_energy)
                 dead_creatures.add(target.id)
     
     def _attempt_reproduction(self, creature: Creature, nearby_creatures: List[Creature]) -> Optional[Creature]:
@@ -342,6 +377,29 @@ class Simulation:
             "avg_generation": np.mean([c.generation for c in self.creatures]) if self.creatures else 0,
             "environment_stats": self.environment.get_statistics()
         }
+    
+    def get_creature_data(self) -> List[Dict[str, Any]]:
+        """Get data for all creatures."""
+        return [creature.get_state_dict() for creature in self.creatures]
+    
+    def get_environment_data(self) -> Dict[str, Any]:
+        """Get environment data."""
+        return {
+            'width': self.cfg.width,
+            'height': self.cfg.height,
+            'temperature': self.environment.temperature,
+            'step_count': self.environment.step_count,
+            'total_food': float(np.sum(self.environment.food)),
+            'avg_food': float(np.mean(self.environment.food))
+        }
+    
+    def get_performance_report(self) -> Dict[str, Any]:
+        """Get comprehensive performance analysis."""
+        return global_profiler.get_performance_report()
+    
+    def print_performance_summary(self):
+        """Print a readable performance summary."""
+        global_profiler.print_performance_summary()
     
     def reset(self, new_seed: Optional[int] = None) -> None:
         """Reset simulation to initial state with optional new seed."""

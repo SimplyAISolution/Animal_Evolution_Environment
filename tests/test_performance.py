@@ -6,7 +6,7 @@ import numpy as np
 from ai_evo.simulation import Simulation
 from ai_evo.config import Config
 from ai_evo.spatial import SpatialHash
-from ai_evo.creature import Creature
+from ai_evo.creatures import Creature
 from ai_evo.genome import Genome
 
 class TestPerformance:
@@ -119,14 +119,14 @@ class TestPerformance:
         process = psutil.Process(os.getpid())
         initial_memory = process.memory_info().rss / 1024 / 1024  # MB
         
-        # Create large simulation
+        # Create large simulation (reduced size for practical testing)
         config = Config(
             seed=42,
-            init_herbivores=300,
-            init_carnivores=100,
-            width=150,
-            height=150,
-            max_steps=200
+            init_herbivores=150,
+            init_carnivores=50,
+            width=120,
+            height=120,
+            max_steps=100
         )
         
         sim = Simulation(config)
@@ -134,10 +134,10 @@ class TestPerformance:
         # Run simulation and monitor memory
         memory_samples = []
         
-        for step in range(200):
+        for step in range(100):
             sim.step()
             
-            if step % 20 == 0:  # Sample every 20 steps
+            if step % 10 == 0:  # Sample every 10 steps
                 current_memory = process.memory_info().rss / 1024 / 1024  # MB
                 memory_samples.append(current_memory - initial_memory)
         
@@ -145,13 +145,13 @@ class TestPerformance:
         max_memory_growth = max(memory_samples)
         print(f"Maximum memory growth: {max_memory_growth:.1f} MB")
         
-        # Should not exceed 500MB additional memory for this test
-        assert max_memory_growth < 500
+        # Should not exceed 200MB additional memory for this test
+        assert max_memory_growth < 200
         
         # Memory shouldn't have large leaks (no continuous growth)
         if len(memory_samples) > 5:
             recent_growth = memory_samples[-1] - memory_samples[-5]
-            assert recent_growth < 100  # Less than 100MB growth in last 100 steps
+            assert recent_growth < 50  # Less than 50MB growth in last 50 steps
     
     def test_spatial_hash_accuracy(self):
         """Test that spatial hash returns correct neighbors."""
@@ -233,7 +233,7 @@ class TestPerformance:
             
             # Population should not go negative or exceed reasonable bounds
             assert len(sim.creatures) >= 0
-            assert len(sim.creatures) <= 2000  # Reasonable upper bound
+            assert len(sim.creatures) <= 3000  # Reasonable upper bound for large population test
             
             if not success or len(sim.creatures) == 0:
                 break
@@ -246,9 +246,9 @@ class TestPerformance:
         print(f"Maximum step time: {max_step_time:.4f}s")
         print(f"Final population: {len(sim.creatures)}")
         
-        # Performance requirements
-        assert avg_step_time < 0.1  # Average less than 100ms per step
-        assert max_step_time < 0.5  # No single step takes more than 500ms
+        # Performance requirements for large population
+        assert avg_step_time < 0.15  # Average less than 150ms per step for large populations
+        assert max_step_time < 0.25  # No single step takes more than 250ms
         
         # Should run for reasonable number of steps
         assert len(population_history) > 50

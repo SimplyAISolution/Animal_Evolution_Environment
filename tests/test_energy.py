@@ -4,7 +4,7 @@ import pytest
 import numpy as np
 from ai_evo.simulation import Simulation
 from ai_evo.config import Config
-from ai_evo.creature import Creature
+from ai_evo.creatures import Creature
 from ai_evo.genome import Genome
 
 class TestEnergy:
@@ -267,7 +267,7 @@ class TestEnergy:
         slow_energy_loss = 100.0 - slow_creature.energy
         
         assert slow_energy_loss < fast_energy_loss
-        assert both creatures lost some energy
+        # Both creatures should have lost some energy
         assert fast_energy_loss > 0
         assert slow_energy_loss > 0
     
