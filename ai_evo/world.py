@@ -31,3 +31,12 @@ class Environment:
         consumed = min(available, amount)
         self.food[y, x] -= consumed
         return consumed
+        
+    def get_statistics(self) -> dict:
+        """Get environment statistics."""
+        return {
+            "total_food": float(np.sum(self.food)),
+            "avg_food": float(np.mean(self.food)),
+            "temperature": self.temperature,
+            "time_step": self.t
+        }

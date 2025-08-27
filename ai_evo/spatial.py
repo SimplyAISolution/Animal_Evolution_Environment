@@ -43,3 +43,15 @@ class SpatialHash:
     def get_neighbors(self, agents, query_agent, radius):
         """Get neighbors within radius of query agent (alias for neighbors)."""
         return self.neighbors(agents, query_agent, radius)
+        
+    def get_stats(self) -> dict:
+        """Get spatial hash statistics."""
+        total_cells = len(self.grid)
+        total_agents = sum(len(agents) for agents in self.grid.values())
+        avg_agents_per_cell = total_agents / max(1, total_cells)
+        
+        return {
+            "total_cells": total_cells,
+            "total_agents": total_agents,
+            "avg_agents_per_cell": avg_agents_per_cell
+        }
