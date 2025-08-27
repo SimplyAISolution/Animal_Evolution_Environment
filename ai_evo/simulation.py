@@ -142,19 +142,16 @@ class Simulation:
                         nearby_creatures: List[Creature], dead_creatures: set) -> Optional[Creature]:
         """Execute creature's chosen actions and return potential offspring."""
         
-        # Movement with toroidal wrapping
-        dx = actions["move_x"] * creature.genome.speed
-        dy = actions["move_y"] * creature.genome.speed
-        new_x = creature.position[0] + dx
-        new_y = creature.position[1] + dy
-        creature.update_position(new_x, new_y, self.cfg.width, self.cfg.height)
+        # Movement
+        dx = actions["move_x"] * creature.genome.speed * 0.5
+        dy = actions["move_y"] * creature.genome.speed * 0.5
+        creature.move(dx, dy, self.cfg.width, self.cfg.height)
         
         # Feeding behavior
-        if actions["eat"] > 0.5:
-            if creature.species == "herbivore":
-                self._herbivore_feeding(creature)
-            elif creature.species == "carnivore":
-                self._carnivore_hunting(creature, nearby_creatures, dead_creatures)
+        if creature.species == "herbivore":
+            self._herbivore_feeding(creature)
+        elif creature.species == "carnivore" and actions["attack"] > 0.5:
+            self._carnivore_hunting(creature, nearby_creatures, dead_creatures)
         
         # Reproduction
         offspring = None
@@ -165,12 +162,12 @@ class Simulation:
     
     def _herbivore_feeding(self, creature: Creature) -> None:
         """Handle herbivore plant consumption."""
-        x, y = creature.position[0], creature.position[1]
-        food_consumed = self.environment.consume_food_at(x, y, self.cfg.herbivore_bite_cap)
+        x, y = int(creature.position[0]), int(creature.position[1])
+        food_consumed = self.environment.consume_food(x, y, self.cfg.herbivore_bite_size)
         
         if food_consumed > 0:
             energy_gained = food_consumed * 8.0  # Energy conversion efficiency
-            creature.gain_energy(energy_gained, self.cfg.max_energy)
+            creature.gain_energy(energy_gained, self.cfg.min_energy, self.cfg.max_energy)
     
     def _carnivore_hunting(self, predator: Creature, nearby_creatures: List[Creature], 
                           dead_creatures: set) -> None:
@@ -180,11 +177,23 @@ class Simulation:
         min_distance = 2.0  # Attack range
         
         for prey in nearby_creatures:
-            if (prey.species == "herbivore" and 
-                prey.id not in dead_creatures and
-                predator.distance_to(prey) < min_distance):
-                target = prey
-                min_distance = predator.distance_to(prey)
+            if (prey.species == "herbivore" and
+                prey.id not in dead_creatures):
+                # Calculate toroidal distance
+                dx = abs(predator.position[0] - prey.position[0])
+                dy = abs(predator.position[1] - prey.position[1])
+                
+                # Handle toroidal wrapping
+                if dx > self.cfg.width / 2:
+                    dx = self.cfg.width - dx
+                if dy > self.cfg.height / 2:
+                    dy = self.cfg.height - dy
+                
+                distance = (dx * dx + dy * dy) ** 0.5
+                
+                if distance < min_distance:
+                    target = prey
+                    min_distance = distance
         
         if target:
             # Combat resolution based on size and aggression
@@ -193,8 +202,8 @@ class Simulation:
             
             if attack_power > defense_power:
                 # Successful hunt
-                energy_gained = target.energy * self.cfg.carnivore_gain_eff
-                predator.gain_energy(energy_gained, self.cfg.max_energy)
+                energy_gained = target.energy * self.cfg.carnivore_energy_gain
+                predator.gain_energy(energy_gained, self.cfg.min_energy, self.cfg.max_energy)
                 dead_creatures.add(target.id)
     
     def _attempt_reproduction(self, creature: Creature, nearby_creatures: List[Creature]) -> Optional[Creature]:

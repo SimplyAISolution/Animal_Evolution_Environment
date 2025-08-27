@@ -41,6 +41,11 @@ class Config:
     perception_max: float = 10.0
     max_age: int = 1000
     
+    # Feeding parameters
+    herbivore_bite_size: float = 2.0
+    carnivore_attack_damage: float = 20.0
+    carnivore_energy_gain: float = 0.7
+    
     # Evolution parameters
     mutation_rate: float = 0.1
     mutation_strength: float = 0.2
