@@ -267,7 +267,7 @@ class TestEnergy:
         slow_energy_loss = 100.0 - slow_creature.energy
         
         assert slow_energy_loss < fast_energy_loss
-        assert both creatures lost some energy
+        # Both creatures should have lost some energy
         assert fast_energy_loss > 0
         assert slow_energy_loss > 0
     

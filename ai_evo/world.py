@@ -17,3 +17,26 @@ class Environment:
 
     def wrap(self, x, y):
         return x % self.width, y % self.height
+        
+    def step(self):
+        """Advance environment by one time step."""
+        self.t += 1
+        self.grow_food()
+        
+    def consume_food_at(self, x: int, y: int, amount: float) -> float:
+        """Consume food at given position, return amount actually consumed."""
+        x, y = int(x), int(y)  # Convert to integers
+        x, y = self.wrap(x, y)
+        available = self.food[y, x]
+        consumed = min(available, amount)
+        self.food[y, x] -= consumed
+        return consumed
+        
+    def get_statistics(self) -> dict:
+        """Get environment statistics."""
+        return {
+            "total_food": float(np.sum(self.food)),
+            "avg_food": float(np.mean(self.food)),
+            "temperature": self.temperature,
+            "time_step": self.t
+        }
