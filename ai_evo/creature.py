@@ -8,7 +8,8 @@ from .genome import Genome
 class Creature:
     """Represents an individual creature with genetics, behavior, and state."""
     
-    def __init__(self, id: str, genome: Genome, species: str, position: np.ndarray, energy: float):
+    def __init__(self, id: str, genome: Genome, species: str, position: np.ndarray, energy: float, 
+                 generation: int = 0, parent_ids: Optional[list] = None):
         """Initialize a creature with basic properties."""
         self.id = id
         self.genome = genome
@@ -16,7 +17,8 @@ class Creature:
         self.position = position.copy()
         self.energy = energy
         self.age = 0
-        self.generation = 0
+        self.generation = generation
+        self.parent_ids = parent_ids or []
         self.alive = True
         
     def can_reproduce(self) -> bool:
@@ -41,3 +43,9 @@ class Creature:
         """Update position with world boundary wrapping."""
         self.position[0] = (self.position[0] + dx) % world_width
         self.position[1] = (self.position[1] + dy) % world_height
+        
+    def distance_to(self, other: 'Creature') -> float:
+        """Calculate distance to another creature."""
+        dx = self.position[0] - other.position[0]
+        dy = self.position[1] - other.position[1]
+        return np.sqrt(dx*dx + dy*dy)

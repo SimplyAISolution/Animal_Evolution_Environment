@@ -13,6 +13,7 @@ class Config:
                  mutation_rate: float = 0.1,
                  mutation_strength: float = 0.1,
                  plant_growth_rate: float = 0.05,
+                 plant_cap: float = 10.0,
                  max_energy: float = 200.0,
                  min_energy: float = 0.0,
                  herbivore_bite_cap: float = 3.0,
@@ -20,6 +21,8 @@ class Config:
                  reproduce_threshold: float = 120.0,
                  reproduce_cost_frac: float = 0.5,
                  move_cost_base: float = 0.1,
+                 grid_cell: int = 8,
+                 snapshot_every: int = 100,
                  # Trait bounds
                  speed_min: float = 0.1,
                  speed_max: float = 3.0,
@@ -45,6 +48,7 @@ class Config:
         self.mutation_rate = mutation_rate
         self.mutation_strength = mutation_strength
         self.plant_growth_rate = plant_growth_rate
+        self.plant_cap = plant_cap
         self.max_energy = max_energy
         self.min_energy = min_energy
         self.herbivore_bite_cap = herbivore_bite_cap
@@ -52,6 +56,8 @@ class Config:
         self.reproduce_threshold = reproduce_threshold
         self.reproduce_cost_frac = reproduce_cost_frac
         self.move_cost_base = move_cost_base
+        self.grid_cell = grid_cell
+        self.snapshot_every = snapshot_every
         
         # Trait bounds
         self.speed_min = speed_min

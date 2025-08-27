@@ -24,10 +24,29 @@ class Genome:
         self.energy_efficiency = energy_efficiency
         self.reproduction_threshold = reproduction_threshold
         self.lifespan = lifespan
-        self.brain_weights = brain_weights if brain_weights is not None else np.random.randn(10)
+        
+        # Initialize brain weights as tuple (W1, b1, W2, b2) or simple array
+        if brain_weights is None:
+            # Create default neural network weights
+            input_size = 8
+            hidden_size = 6
+            output_size = 4
+            self.brain_weights = (
+                np.random.randn(input_size, hidden_size) * 0.5,  # W1
+                np.random.randn(hidden_size) * 0.5,              # b1
+                np.random.randn(hidden_size, output_size) * 0.5, # W2
+                np.random.randn(output_size) * 0.5               # b2
+            )
+        else:
+            self.brain_weights = brain_weights
         
     def copy(self) -> 'Genome':
         """Create a copy of this genome."""
+        if isinstance(self.brain_weights, tuple):
+            copied_weights = tuple(w.copy() for w in self.brain_weights)
+        else:
+            copied_weights = self.brain_weights.copy()
+            
         return Genome(
             speed=self.speed,
             size=self.size,
@@ -36,5 +55,5 @@ class Genome:
             energy_efficiency=self.energy_efficiency,
             reproduction_threshold=self.reproduction_threshold,
             lifespan=self.lifespan,
-            brain_weights=self.brain_weights.copy()
+            brain_weights=copied_weights
         )
