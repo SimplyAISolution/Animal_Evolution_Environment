@@ -176,7 +176,7 @@ class SimulationRunner:
         print(f"🌍 World: {config.width}x{config.height}")
         print(f"🐾 Initial Population: {config.init_herbivores} herbivores, {config.init_carnivores} carnivores")
         print(f"🧬 Evolution: {config.mutation_rate:.1%} mutation rate, {config.mutation_strength:.1%} strength")
-        print(f"🌱 Environment: {config.plant_growth_rate:.3f} growth rate, {config.plant_cap:.1f} capacity")
+        print(f"🌱 Environment: {config.plant_growth_rate:.3f} growth rate, {config.plant_max_density:.1f} capacity")
         print(f"🎲 Seed: {config.seed}")
         print()
     

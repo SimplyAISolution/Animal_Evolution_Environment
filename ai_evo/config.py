@@ -1,6 +1,7 @@
 """Configuration management for AI Evolution Environment."""
 
-from dataclasses import dataclass
+import argparse
+from dataclasses import dataclass, fields
 from typing import Optional
 
 
@@ -53,3 +54,37 @@ class Config:
     # Performance settings
     enable_profiling: bool = False
     max_population: int = 1000
+    
+    @classmethod
+    def create_parser(cls) -> argparse.ArgumentParser:
+        """Create argument parser for configuration."""
+        parser = argparse.ArgumentParser(
+            description="AI Animal Evolution Environment",
+            formatter_class=argparse.ArgumentDefaultsHelpFormatter
+        )
+        
+        # Add arguments for each configuration field
+        parser.add_argument('--seed', type=int, default=42, help='Random seed')
+        parser.add_argument('--width', type=int, default=100, help='World width')
+        parser.add_argument('--height', type=int, default=100, help='World height')
+        parser.add_argument('--init-herbivores', type=int, default=50, help='Initial herbivore count')
+        parser.add_argument('--init-carnivores', type=int, default=20, help='Initial carnivore count')
+        parser.add_argument('--steps', '--max-steps', type=int, default=1000, help='Maximum simulation steps')
+        parser.add_argument('--plant-growth-rate', type=float, default=0.1, help='Plant growth rate')
+        parser.add_argument('--enable-profiling', action='store_true', help='Enable performance profiling')
+        
+        return parser
+    
+    @classmethod
+    def from_args(cls, args):
+        """Create configuration from parsed arguments."""
+        return cls(
+            seed=args.seed,
+            width=args.width,
+            height=args.height,
+            init_herbivores=args.init_herbivores,
+            init_carnivores=args.init_carnivores,
+            max_steps=args.steps,
+            plant_growth_rate=args.plant_growth_rate,
+            enable_profiling=args.enable_profiling
+        )
