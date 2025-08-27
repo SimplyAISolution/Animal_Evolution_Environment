@@ -1,0 +1,22 @@
+version: '3.8'
+
+services:
+  ai-evolution:
+    build: .
+    ports:
+      - "8501:8501"
+    environment:
+      - PYTHONPATH=/app
+    volumes:
+      - ./data:/app/data  # For data persistence
+    restart: unless-stopped
+    
+  ai-evolution-cli:
+    build: .
+    command: python main.py --steps 1000 --verbose --export
+    environment:
+      - PYTHONPATH=/app
+    volumes:
+      - ./data:/app/data
+    profiles:
+      - cli  # Only run when explicitly requested
